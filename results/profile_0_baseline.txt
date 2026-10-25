@@ -1,0 +1,34 @@
+Profile: 0_baseline (15 steps, batch 128, device cpu)
+
+Time per step by stage:
+  data_loading       45.4 ms  ( 13.4%)
+  forward           101.6 ms  ( 29.9%)
+  backward          190.9 ms  ( 56.3%)
+  optimizer           1.5 ms  (  0.4%)
+
+Top 20 operators by self CPU time:
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                             aten::convolution_backward        40.35%        2.054s        44.26%        2.253s      16.688ms           135  
+                               aten::mkldnn_convolution        18.11%     921.606ms        18.19%     926.169ms       6.861ms           135  
+enumerate(DataLoader)#_SingleProcessDataLoaderIter._...        10.37%     527.760ms        13.34%     679.092ms      45.273ms            15  
+                                aten::native_batch_norm         6.66%     339.047ms         6.73%     342.401ms       2.536ms           135  
+                       aten::native_batch_norm_backward         6.02%     306.459ms         6.07%     309.208ms       2.290ms           135  
+                                            aten::copy_         3.93%     200.046ms         3.93%     200.046ms      16.588us         12060  
+                                        aten::clamp_min         2.43%     123.629ms         2.43%     123.629ms       1.177ms           105  
+                               aten::threshold_backward         2.41%     122.646ms         2.41%     122.646ms       1.168ms           105  
+                                              aten::add         1.41%      71.887ms         1.41%      71.887ms      78.566us           915  
+                                             aten::add_         1.03%      52.392ms         1.03%      52.392ms      49.897us          1050  
+                                              2_forward         0.79%      40.167ms        29.93%        1.524s     101.574ms            15  
+     autograd::engine::evaluate_function: ReluBackward0         0.72%      36.660ms         3.17%     161.298ms       1.536ms           105  
+autograd::engine::evaluate_function: ConvolutionBack...         0.71%      36.200ms        45.91%        2.337s      17.310ms           135  
+                                             3_backward         0.50%      25.257ms        56.25%        2.863s     190.895ms            15  
+                                            aten::empty         0.44%      22.383ms         0.44%      22.383ms       1.875us         11940  
+                                              aten::div         0.30%      15.341ms         0.43%      21.788ms      11.260us          1935  
+                                               aten::eq         0.26%      12.986ms         0.37%      18.818ms       9.801us          1920  
+                                         aten::_to_copy         0.22%      11.390ms         0.56%      28.725ms       3.527us          8145  
+                                             aten::view         0.21%      10.771ms         0.21%      10.771ms       1.392us          7740  
+                                    aten::empty_strided         0.20%      10.177ms         0.20%      10.177ms       1.010us         10080  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 5.090s

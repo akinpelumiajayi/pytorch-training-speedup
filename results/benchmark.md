@@ -1,0 +1,9 @@
+| change                                     |   images_per_sec |   ms_per_step |   epoch_seconds_est |   speedup_vs_baseline |   data_pct |   forward_pct |   backward_pct |   optimizer_pct |
+|:-------------------------------------------|-----------------:|--------------:|--------------------:|----------------------:|-----------:|--------------:|---------------:|----------------:|
+| Baseline: PNG files, PIL, fp32             |            392.1 |        326.44 |               153   |                  1    |       11   |          30.8 |           57.7 |             0.5 |
+| + 2 DataLoader workers                     |            399.9 |        320.1  |               150   |                  1.02 |        0.9 |          42.7 |           55.8 |             0.5 |
+| + uint8 tensor cache, batched augmentation |            489   |        261.74 |               122.7 |                  1.25 |        0.5 |          38.2 |           60.3 |             0.9 |
+| + channels_last memory format              |            499.6 |        256.22 |               120.1 |                  1.27 |        0.5 |          38.5 |           59.9 |             1.1 |
+| + bfloat16 mixed precision                 |           1210.3 |        105.76 |                49.6 |                  3.09 |        1.1 |          29   |           68.5 |             1.4 |
+| + torch.compile                            |           1511.9 |         84.66 |                39.7 |                  3.86 |        1.4 |          27.5 |           69.4 |             1.7 |
+| + batch 512 (slower, not kept)             |           1083.3 |        472.61 |                55.4 |                  2.76 |        2.2 |          36.1 |           60.7 |             1   |

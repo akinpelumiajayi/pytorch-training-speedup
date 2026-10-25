@@ -1,0 +1,31 @@
+{
+  "environment": {
+    "torch": "2.14.1+cu130",
+    "device": "cpu",
+    "threads": 2,
+    "cpu": "x86_64",
+    "python": "3.11.17"
+  },
+  "0_baseline": {
+    "name": "0_baseline",
+    "epochs": 3,
+    "epoch_seconds": [
+      152.2,
+      150.2,
+      149.9
+    ],
+    "train_seconds": 452.4,
+    "test_accuracy": 0.9063
+  },
+  "5_torch_compile": {
+    "name": "5_torch_compile",
+    "epochs": 3,
+    "epoch_seconds": [
+      43.2,
+      43.6,
+      43.5
+    ],
+    "train_seconds": 130.2,
+    "test_accuracy": 0.904
+  }
+}
