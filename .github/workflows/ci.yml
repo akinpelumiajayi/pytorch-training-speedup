@@ -7,22 +7,28 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows spawns DataLoader workers, so it catches unpicklable loaders
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
       - name: Install CPU PyTorch and dependencies
         run: |
-          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
+          pip install -e .
       - name: Unit tests
         run: pytest -q
       - name: Download data and run a short benchmark
-        env:
-          PYTHONPATH: src
         run: |
           python -m speedup.data
           python -c "from speedup.train import Config, benchmark; print(benchmark(Config('smoke', loader='fast', amp=True), steps=5, warmup=2))"
+      - name: Baseline loader with worker processes
+        run: python -c "from speedup.train import Config, benchmark; print(benchmark(Config('workers', num_workers=2), steps=3, warmup=1))"
