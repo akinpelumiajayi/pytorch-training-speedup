@@ -2,16 +2,17 @@
 
     python -m speedup.profile                 # profiles the baseline and the final config
 
-Writes results/profile_<name>.txt (top operators) and results/trace_<name>.json
+On a GPU each stage ends with a CUDA sync, so stage times include the GPU work
+rather than only the time to launch it.
+
+Writes results/<cpu|gpu>/profile_<name>.txt (top operators) and trace_<name>.json
 (open in chrome://tracing or https://ui.perfetto.dev).
 """
 import torch
+from torch.autograd import DeviceType
 from torch.profiler import ProfilerActivity, profile, record_function
 
-from speedup.data import ROOT
-from speedup.train import Config, autocast, build, device, make_loader, train_step
-
-RESULTS = ROOT / "results"
+from speedup.train import Config, autocast, build, device, make_loader, results_dir, sync, train_step
 STAGES = ["1_data_loading", "2_forward", "3_backward", "4_optimizer"]
 
 
@@ -31,21 +32,27 @@ def profile_config(cfg: Config, steps: int = 15, warmup: int = 5) -> dict:
                 x, y = x.to(device()), y.to(device())
                 if cfg.channels_last:
                     x = x.contiguous(memory_format=torch.channels_last)
+                sync()
             with record_function("2_forward"):
                 with autocast(cfg):
                     loss = torch.nn.functional.cross_entropy(step_model(x), y)
+                sync()
             with record_function("3_backward"):
                 opt.zero_grad(set_to_none=True)
                 scaler.scale(loss).backward()
+                sync()
             with record_function("4_optimizer"):
                 scaler.step(opt)
                 scaler.update()
+                sync()
 
-    events = {e.key: e for e in prof.key_averages()}
+    # With CUDA tracing each label appears twice (CPU event + GPU annotation); keep the CPU one.
+    # Each stage ends with a sync, so its CPU wall time includes the GPU work.
+    events = {e.key: e for e in prof.key_averages() if e.device_type == DeviceType.CPU}
     stage_ms = {s: events[s].cpu_time_total / 1000 / steps for s in STAGES if s in events}
     total = sum(stage_ms.values())
 
-    RESULTS.mkdir(exist_ok=True)
+    RESULTS = results_dir()
     lines = [f"Profile: {cfg.name} ({steps} steps, batch {cfg.batch_size}, device {device()})", "",
              "Time per step by stage:"]
     lines += [f"  {s[2:]:14s} {ms:8.1f} ms  ({100 * ms / total:5.1f}%)" for s, ms in stage_ms.items()]
@@ -58,7 +65,10 @@ def profile_config(cfg: Config, steps: int = 15, warmup: int = 5) -> dict:
 
 
 if __name__ == "__main__":
-    from speedup.benchmark import CONFIGS, FINAL
+    from speedup.benchmark import CONFIGS, FINAL, configs_for_device
 
     profile_config(CONFIGS[0])
     profile_config(FINAL)
+    for cfg in configs_for_device():
+        if cfg not in CONFIGS:  # device-specific extras, e.g. CUDA graphs
+            profile_config(cfg)
