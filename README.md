@@ -4,14 +4,14 @@ I profiled a PyTorch image classifier training on real Zalando product photos, f
 
 Every change is measured on its own, so you can see which ones paid off and which did not.
 
-![Training throughput for each change](results/speedup.png)
+![Training throughput for each change](results/cpu/speedup.png)
 
 ## The task
 
 - **Data:** [Fashion-MNIST](https://github.com/zalandoresearch/fashion-mnist), 70,000 greyscale photos of Zalando catalogue products (t-shirts, trousers, bags, sneakers and 6 more classes). The raw files are exported as one PNG per image in class folders, the layout most real image projects start from.
 - **Model:** a small ResNet (3 residual blocks, 308,000 parameters) trained with SGD, Nesterov momentum and a one-cycle learning rate.
 - **Augmentation:** random crop with 2-pixel padding and a random horizontal flip.
-- **Hardware:** 2-core Intel Xeon CPU with AMX and AVX-512 bfloat16 support, PyTorch 2.14. No GPU. The code switches to float16 mixed precision automatically on a CUDA GPU.
+- **Hardware:** 2-core Intel Xeon CPU with AMX and AVX-512 bfloat16 support, PyTorch 2.14.1, Python 3.11, no GPU. The code switches to float16 mixed precision automatically on a CUDA GPU (see [the GPU results](#gpu-results-rtx-4070-laptop)).
 
 ## Step 1: profile the baseline
 
@@ -28,7 +28,7 @@ The baseline is the standard tutorial setup: `torchvision.datasets.ImageFolder` 
 
 The slowest step is the backward pass. The top operator is `aten::convolution_backward` at **40% of all CPU time**, with the forward convolution (`aten::mkldnn_convolution`) next at 18%. Data loading takes 13%, enough to matter but not the main cost. So the biggest win had to come from making the convolution maths cheaper, with a faster data pipeline second.
 
-Full operator tables: [`results/profile_0_baseline.txt`](results/profile_0_baseline.txt) and [`results/profile_5_torch_compile.txt`](results/profile_5_torch_compile.txt).
+Full operator tables: [`results/cpu/profile_0_baseline.txt`](results/cpu/profile_0_baseline.txt) and [`results/cpu/profile_5_torch_compile.txt`](results/cpu/profile_5_torch_compile.txt).
 
 ## Step 2: apply one change at a time
 
@@ -44,7 +44,7 @@ Each row adds one change on top of the row above. Throughput is the median of 3 
 | **+ torch.compile** | **1,512** | **85** | **3.86x** | 1.4% |
 | + batch 512 (slower, not kept) | 1,083 | 473 | 2.76x | 2.2% |
 
-Full table with forward, backward and optimizer shares: [`results/benchmark.md`](results/benchmark.md).
+Full table with forward, backward and optimizer shares: [`results/cpu/benchmark.md`](results/cpu/benchmark.md).
 
 ### What each change does, and why it helped or did not
 
@@ -62,7 +62,7 @@ Full table with forward, backward and optimizer shares: [`results/benchmark.md`]
 
 ## Step 3: check accuracy did not suffer
 
-Speed means nothing if the model learns worse. Both setups trained for 3 full epochs from the same seed (`results/accuracy.json`):
+Speed means nothing if the model learns worse. Both setups trained for 3 full epochs from the same seed (`results/cpu/accuracy.json`):
 
 | Setup | Seconds per epoch | 3-epoch training time | Test accuracy |
 |---|---:|---:|---:|
@@ -71,26 +71,104 @@ Speed means nothing if the model learns worse. Both setups trained for 3 full ep
 
 The 0.23-point gap is small. Each setup ran once, so expect the exact figures to move a little between runs.
 
+## GPU results (RTX 4070 Laptop)
+
+The same benchmark on an NVIDIA GeForce RTX 4070 Laptop GPU (8 GB, PyTorch 2.11 with CUDA 12.8, 16 CPU threads). The results are in their own folder, [`results/gpu/`](results/gpu/).
+
+![GPU training throughput for each change](results/gpu/speedup.png)
+
+| Change | Images/sec | ms/step | Speed-up | Data share |
+|---|---:|---:|---:|---:|
+| Baseline: PNG files, PIL, float32 | 1,147 | 111.6 | 1.00x | 67.1% |
+| + 2 DataLoader workers | 3,251 | 39.4 | 2.84x | 64.0% |
+| + uint8 tensor cache, batched augmentation | 5,898 | 21.7 | 5.14x | 6.0% |
+| + channels_last memory format | 5,917 | 21.6 | 5.16x | 5.7% |
+| + float16 mixed precision | 7,159 | 17.9 | 6.24x | 5.5% |
+| **+ torch.compile** | **17,745** | **7.2** | **15.48x** | 12.7% |
+| + CUDA graphs (GPU only) | 25,693 | 5.0 | 22.41x | 18.2% |
+| torch.compile + batch 512 | 35,669 | 14.4 | 31.11x | 6.3% |
+
+Full table: [`results/gpu/benchmark.md`](results/gpu/benchmark.md).
+
+### What changes on a GPU
+
+**The bottleneck moves to data loading.** On the CPU the convolutions took most of each step and data loading 13%. On the GPU the maths is fast, so the baseline spends **87% of each step loading PNGs** ([`profile_0_baseline.txt`](results/gpu/profile_0_baseline.txt)). The GPU sits idle most of the time.
+
+**The data fixes matter far more.** Worker processes gave 1.02x on the 2-core CPU but 2.84x here, with 16 CPU threads to spare. The tensor-cache loader brought data loading down from 64% to 6% of the step.
+
+**Mixed precision helps less, and torch.compile more.** float16 gave only 1.2x, because this small model's kernels are too short to keep the GPU's Tensor Cores busy. Each step instead loses time launching hundreds of tiny kernels. `torch.compile` fuses them (2.5x), and CUDA graphs (`torch.compile(mode="reduce-overhead")`) replay the whole step with one launch (another 1.45x).
+
+**Batch 512 now wins.** It was 28% slower on the CPU but is the fastest setup here (31x), because a bigger batch gives the GPU more work per launch. Its accuracy has not been checked. A larger batch usually needs its learning rate retuned, so the accuracy check below keeps batch 128.
+
+### Accuracy on the GPU
+
+Both setups trained for 3 full epochs from the same seed ([`results/gpu/accuracy.json`](results/gpu/accuracy.json)):
+
+| Setup | Seconds per epoch | 3-epoch training time | Test accuracy |
+|---|---|---:|---:|
+| Baseline | 111.6, 32.9, 32.0 | 176.4 s | 90.62% |
+| Optimised (torch.compile, batch 128) | 4.1, 3.8, 3.8 | 11.7 s | 90.34% |
+
+That is **15x faster end to end** with accuracy level. Part of that comes from the baseline's slow first epoch, where the operating system first reads the 60,000 PNG files from disk. Once those files are cached, the gain is **8.4x per epoch** (32.0 s down to 3.8 s).
+
+Each stage of the GPU profile ends with a CUDA sync, so stage times include GPU work rather than just launch time. Those syncs break up CUDA graphs, so [`profile_5b_cuda_graphs.txt`](results/gpu/profile_5b_cuda_graphs.txt) understates that config. Use the benchmark table for its speed.
+
+## Watch training live
+
+`python -m speedup.train` trains with a live dashboard in the terminal. It shows the hardware and config, a progress bar with the current loss, learning rate and images/sec, and a table that gains a row per epoch with the test accuracy.
+
+```bash
+python -m speedup.train                          # optimised setup, 3 epochs
+python -m speedup.train --compare                # baseline, then optimised, with the speed-up
+python -m speedup.train --config 0_baseline --epochs 5 --seed 1
+python -m speedup.train --list                   # every config name
+```
+
+Every run saves its evidence to `results/<cpu|gpu>/runs/<date>_<time>_<name>/`:
+
+| File | Contents |
+|---|---|
+| `train_log.svg`, `train_log.html` | The terminal output of the run, saved automatically |
+| `curves.png` | Training loss per step, and test accuracy against training time |
+| `summary.json` | Hardware, versions, seed, training time, images/sec, test accuracy |
+| `steps_*.csv`, `epochs_*.csv` | Every logged step and epoch |
+| `model_*.pt` | The trained weights (not committed to git) |
+
+To record a video of a run: on Windows, press **Win + Alt + R** (Xbox Game Bar) with the terminal focused, or use OBS Studio. On macOS or Linux, `asciinema rec` records the terminal as a replayable cast. `--compare` makes the best recording: it shows both runs finishing at about the same accuracy, with the speed-up in the final table. The table gives two speed-ups. **Total** includes epoch 1, which pays one-off costs: compiling the model and the first read of the PNG files from disk. **Steady** uses epochs 2 onwards. In one run on the RTX 4070 they were 6.6x and 8.9x.
+
 ## Run
+
+Requires Python 3.12+. Install the PyTorch build for your hardware first (CPU or CUDA), then the rest:
 
 ```bash
 git clone https://github.com/akinpelumiajayi/pytorch-training-speedup.git
 cd pytorch-training-speedup
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+
+# pick one
+pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
+
 pip install -r requirements.txt
-export PYTHONPATH=src
+pip install -e .
+pip install "triton-windows<3.8"   # Windows + NVIDIA GPU only: needed by torch.compile
 
 python -m speedup.data         # download Fashion-MNIST, export 70,000 PNGs, build the tensor cache
 python -m speedup.profile      # profile the baseline and the optimised setup
-python -m speedup.benchmark    # timing table, chart and accuracy check (about 15 minutes on 2 CPU cores)
-pytest -q                      # 5 tests
+python -m speedup.benchmark    # timing table, chart and accuracy check
+python -m speedup.train        # train with a live dashboard (see above)
+python -m speedup.show         # preview dataset images in the terminal (--class, --random, --augment)
+pytest -q                      # 6 tests
 ```
 
-The profiler also writes Chrome traces to `results/trace_*.json`. Open them in [Perfetto](https://ui.perfetto.dev) to see every operator on a timeline.
+Results go to `results/cpu/` or `results/gpu/` depending on the device, so runs on different hardware never overwrite each other. The CPU benchmark takes about 15 minutes on 2 cores.
+
+The profiler also writes Chrome traces to `results/<cpu|gpu>/trace_*.json`. Open them in [Perfetto](https://ui.perfetto.dev) to see every operator on a timeline.
 
 ## Note
 
-Your numbers will differ with your hardware. A CPU without bfloat16 support gains less from mixed precision. A GPU shifts the bottleneck towards data loading, where the tensor-cache loader matters more.
+Your numbers will differ with your hardware. A CPU without bfloat16 support gains less from mixed precision. A GPU shifts the bottleneck towards data loading, where the tensor-cache loader matters more (see the GPU results above).
 
 ## Project structure
 
@@ -100,9 +178,12 @@ src/speedup/
 ├── loaders.py     baseline ImageFolder loader and the fast TensorBatchLoader
 ├── model.py       small ResNet
 ├── train.py       training step with switchable speed-ups, timed benchmark, full training
+├── live.py        live terminal dashboard for python -m speedup.train
+├── show.py        preview dataset images in the terminal
 ├── profile.py     torch.profiler stage breakdown and operator tables
 └── benchmark.py   ablation table, chart and accuracy check
-results/           measured outputs from the run above
+results/cpu/       measured outputs from the CPU run
+results/gpu/       measured outputs from the GPU run
 tests/             pytest suite, run by GitHub Actions on every push
 ```
 
