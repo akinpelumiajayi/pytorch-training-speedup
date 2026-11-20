@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "speedup"
 version = "1.0.0"
 description = "Profiling and speeding up PyTorch training on Fashion-MNIST"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [{ name = "Akinpelumi Michael Ajayi" }]
 
 [tool.setuptools.packages.find]
