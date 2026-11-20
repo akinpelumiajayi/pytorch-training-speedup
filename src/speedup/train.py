@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 import torch
 from torch import nn
 
-from speedup.data import CACHE_DIR
+from speedup.data import CACHE_DIR, ROOT
 from speedup.loaders import TensorBatchLoader, baseline_loader
 from speedup.model import SmallResNet
 
@@ -24,11 +24,19 @@ class Config:
     channels_last: bool = False    # NHWC memory layout for convolutions
     amp: bool = False              # mixed precision: bfloat16 on CPU, float16 on CUDA
     compile: bool = False          # torch.compile the model
+    compile_mode: str = "default"  # "reduce-overhead" adds CUDA graphs (GPU only)
     lr: float = 0.05
 
 
 def device() -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def results_dir():
+    """results/cpu or results/gpu, so runs on different hardware never overwrite each other."""
+    path = ROOT / "results" / ("gpu" if device() == "cuda" else "cpu")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def sync() -> None:
@@ -58,7 +66,7 @@ def build(cfg: Config, seed: int = 0):
     opt = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=5e-4, nesterov=True)
     # float16 needs loss scaling; bfloat16 has the float32 range and does not
     scaler = torch.amp.GradScaler("cuda", enabled=cfg.amp and device() == "cuda")
-    step_model = torch.compile(model) if cfg.compile else model
+    step_model = torch.compile(model, mode=cfg.compile_mode) if cfg.compile else model
     return model, step_model, opt, scaler
 
 
@@ -143,21 +151,48 @@ def evaluate(model, cfg: Config) -> float:
     return correct / total
 
 
-def train(cfg: Config, epochs: int = 3) -> dict:
-    """Full training run: returns wall-clock time per epoch and test accuracy."""
-    model, step_model, opt, scaler = build(cfg)
+def train(cfg: Config, epochs: int = 3, seed: int = 0, on_step=None, on_epoch=None,
+          eval_each_epoch: bool = False, log_every: int = 20) -> dict:
+    """Full training run: returns wall-clock time per epoch and test accuracy.
+
+    Optional hooks for a live display (python -m speedup.train). They are off by default,
+    so benchmark timings are unaffected:
+      on_step(epoch, step, steps_per_epoch, mean_loss, lr)   every `log_every` steps
+      on_epoch(epoch, epoch_seconds, test_accuracy, model)    after each epoch
+    Loss is summed on the device and read back only every `log_every` steps, because each
+    read forces the CPU to wait for the GPU. Evaluation is never counted in epoch time.
+    """
+    model, step_model, opt, scaler = build(cfg, seed)
     loader = make_loader(cfg)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=cfg.lr * 2, total_steps=epochs * len(loader))
-    epoch_times = []
-    for _ in range(epochs):
+    epoch_times, accuracy = [], None
+    for epoch in range(epochs):
         model.train()
+        running, count = torch.zeros((), device=device()), 0
         sync(); t = time.perf_counter()
-        for x, y in loader:
+        for i, (x, y) in enumerate(loader, start=1):
             x, y = x.to(device(), non_blocking=True), y.to(device(), non_blocking=True)
             if cfg.channels_last:
                 x = x.contiguous(memory_format=torch.channels_last)
-            train_step(step_model, opt, scaler, cfg, x, y)
+            loss = train_step(step_model, opt, scaler, cfg, x, y)
             sched.step()
+            if on_step is not None:
+                running += loss.detach().float()
+                count += 1
+                if i % log_every == 0 or i == len(loader):
+                    on_step(epoch, i, len(loader), (running / count).item(), sched.get_last_lr()[0])
+                    running.zero_()
+                    count = 0
         sync(); epoch_times.append(time.perf_counter() - t)
+        if eval_each_epoch or epoch == epochs - 1:
+            accuracy = evaluate(model, cfg)
+        if on_epoch is not None:
+            on_epoch(epoch, epoch_times[-1], accuracy if eval_each_epoch or epoch == epochs - 1 else None, model)
     return {"name": cfg.name, "epochs": epochs, "epoch_seconds": [round(s, 1) for s in epoch_times],
-            "train_seconds": round(sum(epoch_times), 1), "test_accuracy": round(evaluate(model, cfg), 4)}
+            "train_seconds": round(sum(epoch_times), 1), "test_accuracy": round(accuracy, 4)}
+
+
+if __name__ == "__main__":
+    from speedup.live import main
+
+    main()
