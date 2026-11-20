@@ -2,7 +2,7 @@ import torch
 
 from speedup.loaders import batch_augment
 from speedup.model import SmallResNet, count_parameters
-from speedup.train import Config, autocast, build, train_step
+from speedup.train import Config, autocast, build, device, train_step
 
 
 def test_batch_augment_shape_dtype_and_content():
@@ -14,7 +14,7 @@ def test_batch_augment_shape_dtype_and_content():
         assert set(out[i].unique().tolist()) <= set(x[i].unique().tolist()) | {0}
 
 
-def test_batch_augment_zero_shift_no_flip_is_identity():
+def test_batch_augment_without_padding_only_flips():
     x = torch.randint(0, 255, (4, 1, 28, 28), dtype=torch.uint8)
     out = batch_augment(x, pad=0, generator=torch.Generator().manual_seed(1))
     # with no padding only flips remain: each image equals itself or its mirror
@@ -32,16 +32,22 @@ def test_train_step_reduces_loss_with_all_speedups_on():
     cfg = Config("t", loader="fast", channels_last=True, amp=True, batch_size=32)
     torch.manual_seed(0)
     _, step_model, opt, scaler = build(cfg)
-    x = torch.randn(32, 1, 28, 28).contiguous(memory_format=torch.channels_last)
-    y = torch.randint(0, 10, (32,))
+    x = torch.randn(32, 1, 28, 28, device=device()).contiguous(memory_format=torch.channels_last)
+    y = torch.randint(0, 10, (32,), device=device())
     first = train_step(step_model, opt, scaler, cfg, x, y).item()
     for _ in range(20):
         last = train_step(step_model, opt, scaler, cfg, x, y).item()
     assert last < first
 
 
-def test_autocast_uses_bfloat16_on_cpu():
+def test_autocast_uses_bfloat16_on_cpu_and_float16_on_cuda():
     cfg = Config("t", amp=True)
     with autocast(cfg):
-        out = torch.nn.Linear(4, 4)(torch.randn(2, 4))
-    assert out.dtype in (torch.bfloat16, torch.float16)
+        out = torch.nn.Linear(4, 4).to(device())(torch.randn(2, 4, device=device()))
+    assert out.dtype == (torch.float16 if device() == "cuda" else torch.bfloat16)
+
+
+def test_render_shows_two_pixel_rows_per_line():
+    from speedup.show import render
+    lines = render(torch.randint(0, 255, (1, 28, 28), dtype=torch.uint8))
+    assert len(lines) == 14 and all(line.count("▀") == 28 for line in lines)
