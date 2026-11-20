@@ -1,0 +1,35 @@
+Profile: 5b_cuda_graphs (15 steps, batch 128, device cuda)
+
+Time per step by stage:
+  data_loading        2.9 ms  ( 16.6%)
+  forward             3.9 ms  ( 21.9%)
+  backward            8.9 ms  ( 50.2%)
+  optimizer           2.0 ms  ( 11.3%)
+
+Top 20 operators by self CPU time:
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                  cudaDeviceSynchronize        51.98%     147.950ms        51.98%     147.950ms       2.425ms       0.000us         0.00%       0.000us       0.000us            61  
+                                             3_backward         9.48%      26.983ms        46.97%     133.691ms       8.913ms       0.000us         0.00%      92.962us       6.197us            15  
+                                  cudaStreamSynchronize         6.53%      18.592ms         6.53%      18.592ms     247.895us       0.000us         0.00%       0.000us       0.000us            75  
+                                       cudaLaunchKernel         4.35%      12.385ms         4.35%      12.385ms      19.659us       0.000us         0.00%       0.000us       0.000us           630  
+## Call CompiledFxGraph faip56k6cnf4qzy7sihbnjzoallb...         3.93%      11.177ms         5.00%      14.228ms     948.513us      31.593ms        21.38%      31.887ms       2.126ms            15  
+                                         1_data_loading         2.09%       5.944ms        15.54%      44.244ms       2.950ms       0.000us         0.00%       1.598ms     106.509us            15  
+                                        cudaGraphLaunch         1.97%       5.607ms         1.97%       5.607ms     186.913us       0.000us         0.00%       0.000us       0.000us            30  
+                                Optimizer.step#SGD.step         1.63%       4.629ms         3.42%       9.734ms     648.913us       0.000us         0.00%       2.668ms     177.859us            15  
+                                            4_optimizer         1.45%       4.124ms        10.61%      30.202ms       2.013ms       0.000us         0.00%       3.722ms     248.110us            15  
+## Call CompiledFxGraph fnlie7wvfzejsnemubria3sxcjg2...         1.23%       3.488ms         2.73%       7.775ms     518.300us     109.844ms        74.33%     109.908ms       7.327ms            15  
+                                    aten::empty_strided         1.14%       3.258ms         1.14%       3.258ms       5.051us       0.000us         0.00%       0.000us       0.000us           645  
+                                              2_forward         1.14%       3.255ms        20.51%      58.368ms       3.891ms       0.000us         0.00%      32.199ms       2.147ms            15  
+                                            aten::copy_         0.92%       2.607ms         7.75%      22.050ms      91.877us     865.564us         0.59%     865.564us       3.607us           240  
+                               CompiledFunctionBackward         0.82%       2.346ms         3.56%      10.121ms     674.727us       0.000us         0.00%     109.908ms       7.327ms            15  
+                             Torch-Compiled Region: 0/1         0.81%       2.312ms         6.70%      19.074ms       1.272ms       0.000us         0.00%      31.887ms       2.126ms            15  
+                                        cudaMemcpyAsync         0.79%       2.242ms         0.79%       2.242ms      21.349us       0.000us         0.00%       0.000us       0.000us           105  
+                                       CompiledFunction         0.67%       1.915ms         5.67%      16.143ms       1.076ms       0.000us         0.00%      31.887ms       2.126ms            15  
+                                            aten::index         0.60%       1.717ms         1.70%       4.852ms     107.811us     464.292us         0.31%     736.961us      16.377us            45  
+                                Activity Buffer Request         0.48%       1.375ms         0.48%       1.375ms       1.375ms       0.000us         0.00%       0.000us       0.000us             1  
+autograd::engine::evaluate_function: torch::autograd...         0.47%       1.332ms         1.00%       2.846ms       6.542us       0.000us         0.00%       0.000us       0.000us           435  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 284.628ms
+Self CUDA time total: 147.780ms

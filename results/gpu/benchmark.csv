@@ -1,0 +1,9 @@
+name,loader,num_workers,batch_size,channels_last,amp,compile,compile_mode,lr,device,steps,seconds,images_per_sec,ms_per_step,data_pct,forward_pct,backward_pct,optimizer_pct,runs_images_per_sec,speedup_vs_baseline,epoch_seconds_est
+0_baseline,baseline,0,128,False,False,False,default,0.05,cuda,400,44.655,1146.6,111.64,67.1,8.6,23.5,0.8,"[75.0, 1146.6, 1249.8]",1.0,52.3
+1_dataloader_workers,baseline,2,128,False,False,False,default,0.05,cuda,400,15.75,3250.8,39.38,64.0,8.5,25.9,1.5,"[3051.8, 3281.8, 3250.8]",2.84,18.5
+2_tensor_cache_loader,fast,0,128,False,False,False,default,0.05,cuda,400,8.681,5898.0,21.7,6.0,31.7,59.3,2.9,"[5902.9, 5891.8, 5898.0]",5.14,10.2
+3_channels_last,fast,0,128,True,False,False,default,0.05,cuda,400,8.654,5916.5,21.63,5.7,31.8,59.4,2.9,"[5903.4, 5916.5, 5944.2]",5.16,10.1
+4_mixed_precision,fast,0,128,True,True,False,default,0.05,cuda,400,7.152,7159.1,17.88,5.5,33.9,54.7,5.7,"[7159.1, 7154.2, 7295.2]",6.24,8.4
+5_torch_compile,fast,0,128,True,True,True,default,0.05,cuda,400,2.885,17745.3,7.21,12.7,29.3,46.2,11.6,"[17977.4, 17463.3, 17745.3]",15.48,3.4
+5b_cuda_graphs,fast,0,128,True,True,True,reduce-overhead,0.05,cuda,400,1.993,25692.6,4.98,18.2,17.0,47.9,16.8,"[25692.6, 24819.7, 25851.2]",22.41,2.3
+6_batch_512,fast,0,512,True,True,True,default,0.1,cuda,100,1.435,35669.1,14.35,6.3,24.9,62.7,5.9,"[35874.6, 35594.9, 35669.1]",31.11,1.7

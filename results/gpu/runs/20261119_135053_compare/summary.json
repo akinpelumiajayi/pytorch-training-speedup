@@ -1,0 +1,34 @@
+{
+  "hardware": "NVIDIA GeForce RTX 4070 Laptop GPU (8 GB, CUDA 12.8)",
+  "torch": "2.11.0+cu128",
+  "python": "3.14.10",
+  "epochs": 3,
+  "seed": 0,
+  "finished": "2026-11-19T13:50:54",
+  "runs": [
+    {
+      "name": "0_baseline",
+      "epochs": 3,
+      "epoch_seconds": [
+        47.6,
+        32.6,
+        32.3
+      ],
+      "train_seconds": 112.6,
+      "test_accuracy": 0.9081,
+      "images_per_sec": 1598.6
+    },
+    {
+      "name": "5_torch_compile",
+      "epochs": 3,
+      "epoch_seconds": [
+        40.3,
+        3.0,
+        3.1
+      ],
+      "train_seconds": 46.5,
+      "test_accuracy": 0.9056,
+      "images_per_sec": 3871.0
+    }
+  ]
+}

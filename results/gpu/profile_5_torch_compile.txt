@@ -1,0 +1,35 @@
+Profile: 5_torch_compile (15 steps, batch 128, device cuda)
+
+Time per step by stage:
+  data_loading        2.4 ms  ( 13.1%)
+  forward             5.9 ms  ( 32.7%)
+  backward            8.1 ms  ( 45.0%)
+  optimizer           1.7 ms  (  9.2%)
+
+Top 20 operators by self CPU time:
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                             3_backward        23.39%      79.923ms        35.72%     122.073ms       8.138ms       0.000us         0.00%      62.050us       4.137us            15  
+                                  cudaDeviceSynchronize        20.38%      69.648ms        20.38%      69.648ms       1.142ms       0.000us         0.00%       0.000us       0.000us            61  
+## Call CompiledFxGraph f4jo7q6th73qjir4jkh755sappc2...         6.41%      21.896ms        17.51%      59.831ms       3.989ms       0.000us         0.00%      64.226ms       4.282ms            15  
+                                         cuLaunchKernel         5.85%      19.982ms         5.85%      19.982ms      13.060us       0.000us         0.00%       0.000us       0.000us          1530  
+## Call CompiledFxGraph fltavjaofmlzwmj7wiqpdztykxm4...         5.31%      18.159ms        14.42%      49.288ms       3.286ms       0.000us         0.00%      22.670ms       1.511ms            15  
+                                       cudaLaunchKernel         4.65%      15.895ms         4.65%      15.895ms      17.961us       0.000us         0.00%       0.000us       0.000us           885  
+                             aten::convolution_backward         2.78%       9.511ms         5.55%      18.954ms     140.396us      33.333ms        36.77%      33.333ms     246.913us           135  
+                                         1_data_loading         2.36%       8.057ms        10.42%      35.601ms       2.373ms       0.000us         0.00%       1.067ms      71.152us            15  
+                                            4_optimizer         1.95%       6.671ms         7.29%      24.900ms       1.660ms       0.000us         0.00%       2.281ms     152.045us            15  
+                                aten::cudnn_convolution         1.51%       5.152ms         2.24%       7.663ms      56.765us      12.455ms        13.74%      12.455ms      92.256us           135  
+                                  cudaStreamSynchronize         1.46%       4.983ms         1.46%       4.983ms      66.441us       0.000us         0.00%       0.000us       0.000us            75  
+                                Optimizer.step#SGD.step         1.37%       4.693ms         3.00%      10.247ms     683.120us       0.000us         0.00%       1.638ms     109.218us            15  
+                                    cudaLaunchKernelExC         1.04%       3.541ms         1.04%       3.541ms      13.887us       0.000us         0.00%       0.000us       0.000us           255  
+                                              2_forward         0.95%       3.248ms        25.94%      88.642ms       5.909ms       0.000us         0.00%      22.855ms       1.524ms            15  
+                                    aten::empty_strided         0.92%       3.143ms         0.92%       3.143ms       4.873us       0.000us         0.00%       0.000us       0.000us           645  
+                                            aten::copy_         0.81%       2.767ms         3.85%      13.148ms      54.783us     567.459us         0.63%     567.459us       2.364us           240  
+                                        cudaMemcpyAsync         0.76%       2.602ms         0.76%       2.602ms      24.781us       0.000us         0.00%       0.000us       0.000us           105  
+                                        cudaMemsetAsync         0.74%       2.535ms         0.74%       2.535ms      12.071us       0.000us         0.00%       0.000us       0.000us           210  
+                             Torch-Compiled Region: 0/0         0.69%       2.353ms        15.89%      54.302ms       3.620ms       0.000us         0.00%      22.670ms       1.511ms            15  
+                               CompiledFunctionBackward         0.67%       2.285ms        18.18%      62.116ms       4.141ms       0.000us         0.00%      64.226ms       4.282ms            15  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 341.759ms
+Self CUDA time total: 90.660ms

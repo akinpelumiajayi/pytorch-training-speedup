@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+.r1 {color: #008080; text-decoration-color: #008080}
+.r2 {color: #008080; text-decoration-color: #008080; font-weight: bold}
+.r3 {font-style: italic}
+.r4 {font-weight: bold; font-style: italic}
+.r5 {font-weight: bold}
+.r6 {color: #000080; text-decoration-color: #000080; font-weight: bold}
+.r7 {color: #729c1f; text-decoration-color: #729c1f}
+.r8 {color: #008000; text-decoration-color: #008000}
+.r9 {color: #808000; text-decoration-color: #808000}
+.r10 {color: #008000; text-decoration-color: #008000; font-weight: bold}
+.r11 {color: #800080; text-decoration-color: #800080}
+body {
+    color: #000000;
+    background-color: #ffffff;
+}
+</style>
+</head>
+<body>
+    <pre style="font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><code style="font-family:inherit"><span class="r1">+----------------------------------- </span><span class="r2">PyTorch training speed-up: live training run</span><span class="r1"> ------------------------------------+</span>
+<span class="r1">|</span> <span class="r2">Hardware                </span>NVIDIA GeForce RTX 4070 Laptop GPU (8 GB, CUDA 12.8)                                        <span class="r1">|</span>
+<span class="r1">|</span> <span class="r2">Software                </span>PyTorch 2.11.0+cu128, Python 3.14.10                                                        <span class="r1">|</span>
+<span class="r1">|</span> <span class="r2">Data                    </span>Fashion-MNIST: 60,000 train / 10,000 test product photos, 10 classes                        <span class="r1">|</span>
+<span class="r1">|</span> <span class="r2">Model                   </span>Small ResNet, 308,074 parameters                                                            <span class="r1">|</span>
+<span class="r1">|</span> <span class="r2">Run                     </span>3 epochs, seed 0, started 2026-11-19 13:44:57                                               <span class="r1">|</span>
+<span class="r1">|</span> <span class="r2">Config 5_torch_compile  </span>loader=fast, batch=128, channels_last, mixed precision, torch.compile                       <span class="r1">|</span>
+<span class="r1">+---------------------------------------------------------------------------------------------------------------------+</span>
+<span class="r3">                </span><span class="r4">5_torch_compile</span><span class="r3">  + torch.compile                </span>
++--------------------------------------------------------------+
+|<span class="r5"> Epoch </span>|<span class="r5"> Train loss </span>|<span class="r5"> Test accuracy </span>|<span class="r5"> Epoch time </span>|<span class="r5"> Images/sec </span>|
+|-------+------------+---------------+------------+------------|
+|     1 |     0.4091 |        68.95% |      5.3 s |     11,371 |
+|     2 |     0.3152 |        87.51% |      3.2 s |     18,977 |
+|     3 |     0.2431 |        90.56% |      3.2 s |     18,914 |
++--------------------------------------------------------------+
+<span class="r6">Epoch 3/3</span> <span class="r7">--------------------------------------------------</span> <span class="r8">468/468</span> loss <span class="r9">0.2431</span> lr 0.0000 <span class="r8">16,983 img/s</span> <span class="r9">0:00:06</span> <span class="r1">0:00:00</span><span class="r3">                                  </span><span class="r4">Result</span><span class="r3">                                   </span>
++-------------------------------------------------------------------------+
+|<span class="r5"> Config          </span>|<span class="r5"> Training time </span>|<span class="r5"> Images/sec </span>|<span class="r5"> Test accuracy </span>|<span class="r5"> Speed-up </span>|
+|-----------------+---------------+------------+---------------+----------|
+| 5_torch_compile |        11.6 s |     15,517 |        90.56% |    1.00x |
++-------------------------------------------------------------------------+
+
+<span class="r10">Saved evidence to</span> 
+C:\Users\User\Desktop\MlOps_Project\pytorch-training-speedup\results\gpu\runs\20261119_134511_5_torch_compile
+  train_log.svg <span class="r11">/</span> train_log.html  this terminal session
+  curves.png                      loss and accuracy curves
+  summary.json, steps_*.csv, epochs_*.csv, model_*.pt
+</code></pre>
+</body>
+</html>
