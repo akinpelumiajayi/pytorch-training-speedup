@@ -134,8 +134,6 @@ Every run saves its evidence to `results/<cpu|gpu>/runs/<date>_<time>_<name>/`:
 | `steps_*.csv`, `epochs_*.csv` | Every logged step and epoch |
 | `model_*.pt` | The trained weights (not committed to git) |
 
-To record a video of a run: on Windows, press **Win + Alt + R** (Xbox Game Bar) with the terminal focused, or use OBS Studio. On macOS or Linux, `asciinema rec` records the terminal as a replayable cast. `--compare` makes the best recording: it shows both runs finishing at about the same accuracy, with the speed-up in the final table. The table gives two speed-ups. **Total** includes epoch 1, which pays one-off costs: compiling the model and the first read of the PNG files from disk. **Steady** uses epochs 2 onwards. In one run on the RTX 4070 they were 6.6x and 8.9x.
-
 ## Run
 
 Requires Python 3.12+. Install the PyTorch build for your hardware first (CPU or CUDA), then the rest:
