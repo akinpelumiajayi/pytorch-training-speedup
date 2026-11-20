@@ -16,6 +16,12 @@ from speedup.data import MEAN, PNG_DIR, STD
 
 # ---------- Baseline ----------
 
+def load_greyscale(path: str):
+    """Module-level (not a lambda) so DataLoader workers can pickle it. Worker processes
+    are spawned on Windows, macOS and Python 3.14+ Linux, and spawning needs pickling."""
+    return datasets.folder.pil_loader(path).convert("L")
+
+
 def baseline_transforms(train: bool) -> transforms.Compose:
     steps = [transforms.RandomCrop(28, padding=2), transforms.RandomHorizontalFlip()] if train else []
     return transforms.Compose([*steps, transforms.ToTensor(), transforms.Normalize((MEAN,), (STD,))])
@@ -23,7 +29,7 @@ def baseline_transforms(train: bool) -> transforms.Compose:
 
 def baseline_loader(split: str, batch_size: int, num_workers: int = 0, shuffle: bool = True) -> DataLoader:
     ds = datasets.ImageFolder(PNG_DIR / split, transform=baseline_transforms(split == "train"),
-                              loader=lambda p: datasets.folder.pil_loader(p).convert("L"))
+                              loader=load_greyscale)
     return DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
                       persistent_workers=num_workers > 0, drop_last=shuffle)
 
